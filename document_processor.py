@@ -57,25 +57,19 @@ class DocumentProcessor:
     
     def process_document(self, document_url: str) -> tuple:
         """Process document and create ChromaDB collection"""
-        # Download document
         content = self.download_document(document_url)
         
-        # Determine file type and extract text
         if document_url.lower().endswith('.pdf'):
             text = self.extract_text_from_pdf(content)
         elif document_url.lower().endswith('.docx'):
             text = self.extract_text_from_docx(content)
         else:
-            # Assume it's plain text
             text = content.decode('utf-8', errors='ignore')
         
-        # Split text into chunks
         texts = self.text_splitter.create_documents([text])
         
-        # Create unique collection name
         collection_name = f"doc_{str(uuid.uuid4())[:8]}"
         
-        # Create or get collection
         try:
             collection = self.chroma_client.create_collection(
                 name=collection_name,
@@ -84,7 +78,6 @@ class DocumentProcessor:
         except Exception:
             collection = self.chroma_client.get_collection(name=collection_name)
         
-        # Add documents to collection
         documents = [doc.page_content for doc in texts]
         embeddings = self.embeddings.embed_documents(documents)
         ids = [f"doc_{i}" for i in range(len(documents))]
