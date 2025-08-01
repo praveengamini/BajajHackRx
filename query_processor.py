@@ -10,19 +10,16 @@ class QueryProcessor:
         """Process a single query against the document using ChromaDB"""
         
         try:
-            # Query the collection for relevant documents
             results = collection.query(
                 query_texts=[query],
                 n_results=Config.RETRIEVAL_K
             )
             
-            # Extract relevant context
             if results['documents'] and len(results['documents']) > 0:
                 context = "\n\n".join(results['documents'][0])
             else:
                 context = "No relevant context found."
             
-            # Create enhanced prompt for insurance/legal domain
             prompt = f"""You are an expert in insurance policy analysis and legal document interpretation. 
 Your task is to answer questions about policy documents with high accuracy and provide specific details.
 

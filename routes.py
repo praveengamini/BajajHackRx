@@ -14,18 +14,14 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 import uuid
 
-# Initialize router
 router = APIRouter(prefix="/api/v1")
 
-# Initialize services
 document_processor = DocumentProcessor()
 llm = LocalGeminiChatLLM()
 query_processor = QueryProcessor(llm)
 
-# Initialize ChromaDB
 chroma_client = chromadb.PersistentClient(path=Config.CHROMA_DB_PATH)
 
-# Storage for legacy endpoints
 chroma_collections = {}
 memory_instances = {}
 
@@ -48,11 +44,9 @@ async def hackrx_run(
     Processes documents and answers questions with structured JSON responses.
     """
     try:
-        # Process the document
         print(f"Processing document: {request.documents}")
         collection, document_text = document_processor.process_document(request.documents)
         
-        # Process all questions
         answers = []
         for question in request.questions:
             print(f"Processing question: {question}")
@@ -67,7 +61,6 @@ async def hackrx_run(
             detail=f"Error processing request: {str(e)}"
         )
 
-# Legacy endpoints (keeping for backward compatibility)
 @router.post("/embed")
 async def embed_text(
     request: EmbedRequest,
@@ -81,14 +74,12 @@ async def embed_text(
         texts = text_splitter.create_documents([request.text])
         embeddings = HuggingFaceEmbeddings(model_name=Config.EMBEDDING_MODEL_NAME)
         
-        # Create ChromaDB collection for legacy support
         collection_name = f"legacy_{request.pdfId}"
         try:
             collection = chroma_client.create_collection(name=collection_name)
         except Exception:
             collection = chroma_client.get_collection(name=collection_name)
         
-        # Add documents to collection
         documents = [doc.page_content for doc in texts]
         embeddings_list = embeddings.embed_documents(documents)
         ids = [f"doc_{i}" for i in range(len(documents))]
@@ -114,7 +105,6 @@ def generate_answer(
         raise HTTPException(status_code=404, detail="No embeddings found for this PDF ID")
     
     try:
-        # Query ChromaDB collection
         results = collection.query(
             query_texts=[request.message],
             n_results=3
@@ -148,7 +138,6 @@ def health_check():
         collections = chroma_client.list_collections()
         collection_count = len(collections)
         
-        # Test Gemini API connectivity
         api_status = test_llm_connectivity()
         
         return HealthResponse(

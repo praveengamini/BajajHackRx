@@ -45,7 +45,6 @@ class LocalGeminiChatLLM(LLM, BaseModel):
             
             response_data = response.json()
             
-            # Extract text from Gemini API response structure
             if "candidates" in response_data and len(response_data["candidates"]) > 0:
                 candidate = response_data["candidates"][0]
                 if "content" in candidate and "parts" in candidate["content"]:
@@ -53,14 +52,12 @@ class LocalGeminiChatLLM(LLM, BaseModel):
                     if len(parts) > 0 and "text" in parts[0]:
                         return parts[0]["text"]
             
-            # Fallback if structure is different
             return "Sorry, I couldn't generate a proper response."
             
         except Exception as e:
             print(f"Error calling Gemini API: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Gemini API error: {str(e)}")
 
-# Service functions
 def test_llm_connectivity() -> str:
     """Test LLM API connectivity"""
     try:
