@@ -9,7 +9,7 @@ from models import (
 from auth import get_current_user
 from document_processor import DocumentProcessor
 from query_processor import QueryProcessor
-from llm_service import LocalGeminiChatLLM, test_llm_connectivity
+from llm import LocalGeminiChatLLM, test_llm_connectivity
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 import uuid
@@ -50,13 +50,13 @@ async def hackrx_run(
     try:
         # Process the document
         print(f"Processing document: {request.documents}")
-        collection, document_text = document_processor.process_document(request.documents)
+        vector_store, document_text = document_processor.process_document(request.documents)
         
         # Process all questions
         answers = []
         for question in request.questions:
             print(f"Processing question: {question}")
-            answer = query_processor.process_query(question, collection, document_text)
+            answer = query_processor.process_query(question, vector_store, document_text)
             answers.append(answer)
         
         return HackRXRunResponse(answers=answers)

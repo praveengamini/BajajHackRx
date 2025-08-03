@@ -1,11 +1,10 @@
-import requests
 from langchain.llms.base import LLM
-from pydantic import BaseModel
 from typing import Optional, List
+import requests
 from fastapi import HTTPException
 from config import Config
 
-class LocalGeminiChatLLM(LLM, BaseModel):
+class LocalGeminiChatLLM(LLM):
     model_name: str = Config.GEMINI_MODEL_NAME
     gemini_api_key: str = Config.GEMINI_API_KEY
 
@@ -60,12 +59,11 @@ class LocalGeminiChatLLM(LLM, BaseModel):
             print(f"Error calling Gemini API: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Gemini API error: {str(e)}")
 
-# Service functions
-def test_llm_connectivity() -> str:
-    """Test LLM API connectivity"""
+def test_llm_connectivity():
+    """Test connectivity to Gemini API"""
     try:
-        test_llm = LocalGeminiChatLLM()
-        test_llm._call("Test connection")
+        llm = LocalGeminiChatLLM()
+        test_response = llm._call("Hello")
         return "connected"
-    except:
-        return "disconnected"
+    except Exception as e:
+        return f"error: {str(e)}"
