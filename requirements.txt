@@ -1,21 +1,20 @@
 # Core API and dependencies
 fastapi==0.104.1
-uvicorn==0.24.0
+uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 python-dotenv==1.0.0
 requests==2.31.0
 PyPDF2==3.0.1
 python-docx==1.1.0
-pydantic==2.6.4  # Avoids Rust compilation issues on platforms like Render
+pydantic==2.6.4
 
-# LangChain and related packages
+# LangChain and ecosystem (trimmed to avoid heavy deps)
 langchain==0.1.17
 langchain-community==0.0.36
 langchain-huggingface==0.0.3
 
-# FAISS for vector storage
+# Vector DB (use FAISS only if absolutely necessary)
 faiss-cpu==1.7.4
-# Use faiss-gpu==1.7.4 instead if you have GPU support
 
 # Embeddings - Updated to compatible versions
 sentence-transformers>=2.6.0
@@ -25,4 +24,5 @@ torch>=2.1.0
 # Additional dependencies
 numpy>=1.24.3
 pandas>=1.5.3
-huggingface-hub>=0.16.4
+huggingface-hub==0.23.0  # <-- updated to match langchain-huggingface
+
