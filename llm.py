@@ -1,5 +1,4 @@
 from langchain.llms.base import LLM
-
 from typing import Optional, List
 import requests
 from fastapi import HTTPException
@@ -9,22 +8,11 @@ class LocalGeminiChatLLM(LLM):
     model_name: str = Config.GEMINI_MODEL_NAME
     gemini_api_key: str = Config.GEMINI_API_KEY
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.model_name = kwargs.get('model_name', Config.GEMINI_MODEL_NAME)
-        self.gemini_api_key = kwargs.get('gemini_api_key', Config.GEMINI_API_KEY)
-
     @property
     def _llm_type(self) -> str:
         return "local_gemini_chat_llm"
 
-    def _call(
-        self, 
-        prompt: str, 
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[Any] = None,
-        **kwargs: Any
-    ) -> str:
+    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent"
         headers = {
             "Content-Type": "application/json",

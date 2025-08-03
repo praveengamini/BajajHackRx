@@ -1,5 +1,5 @@
 from langchain_community.vectorstores import FAISS
-from llm_service import LocalGeminiChatLLM
+from llm import LocalGeminiChatLLM
 from config import Config
 
 class QueryProcessor:

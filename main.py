@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import Config
 from routes import router
@@ -14,7 +14,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,7 +25,8 @@ app.include_router(router)
 
 # Legacy route for backward compatibility (without /api/v1 prefix)
 @app.post("/hackrx/run")
-async def legacy_hackrx_run(request: Request):
+async def legacy_hackrx_run(request):
+    """Legacy endpoint for backward compatibility"""
     from routes import hackrx_run
     from auth import verify_token
     from fastapi import Security
@@ -36,12 +37,11 @@ async def legacy_hackrx_run(request: Request):
     mock_user = {"token": "legacy", "authenticated": True}
     return await hackrx_run(request, mock_user)
 
-# Run the application
 if __name__ == "__main__":
     uvicorn.run(
-        "main:app",
-        host=Config.HOST,
-        port=Config.PORT,
+        "main:app", 
+        host=Config.HOST, 
+        port=Config.PORT, 
         workers=1,
-        reload=False
+        reload=True
     )
