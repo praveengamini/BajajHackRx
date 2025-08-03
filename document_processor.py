@@ -1,35 +1,27 @@
-import requests
-import PyPDF2
-import io
-import tempfile
-import os
-import pickle
-from docx import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.schema import Document as LangchainDocument
+import requests
+import PyPDF2
+import io
+from docx import Document
+import tempfile
 from fastapi import HTTPException
 from config import Config
-import uuid
 
 class DocumentProcessor:
     def __init__(self):
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=Config.CHUNK_SIZE, 
             chunk_overlap=Config.CHUNK_OVERLAP,
-            separators=["\n\n", "\n", ". ", "! ", "? ", " ", ""]
+            separators=Config.TEXT_SEPARATORS
         )
         self.embeddings = HuggingFaceEmbeddings(model_name=Config.EMBEDDING_MODEL_NAME)
-        
-        # Create directories for FAISS indexes and metadata
-        os.makedirs(Config.FAISS_INDEX_PATH, exist_ok=True)
-        os.makedirs(Config.FAISS_METADATA_PATH, exist_ok=True)
     
     def download_document(self, url: str) -> bytes:
         """Download document from URL"""
         try:
-            response = requests.get(url, timeout=30)
+            response = requests.get(url, timeout=Config.REQUEST_TIMEOUT)
             response.raise_for_status()
             return response.content
         except Exception as e:
@@ -61,8 +53,8 @@ class DocumentProcessor:
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to extract DOCX text: {str(e)}")
     
-    def process_document(self, document_url: str) -> tuple:
-        """Process document and create ChromaDB collection"""
+    def process_document(self, document_url: str) -> tuple[FAISS, str]:
+        """Process document and create vector store"""
         # Download document
         content = self.download_document(document_url)
         
@@ -78,27 +70,7 @@ class DocumentProcessor:
         # Split text into chunks
         texts = self.text_splitter.create_documents([text])
         
-        # Create unique collection name
-        collection_name = f"doc_{str(uuid.uuid4())[:8]}"
+        # Create vector store
+        vectorstore = FAISS.from_documents(texts, self.embeddings)
         
-        # Create or get collection
-        try:
-            collection = self.chroma_client.create_collection(
-                name=collection_name,
-                metadata={"source": document_url}
-            )
-        except Exception:
-            collection = self.chroma_client.get_collection(name=collection_name)
-        
-        # Add documents to collection
-        documents = [doc.page_content for doc in texts]
-        embeddings = self.embeddings.embed_documents(documents)
-        ids = [f"doc_{i}" for i in range(len(documents))]
-        
-        collection.add(
-            documents=documents,
-            embeddings=embeddings,
-            ids=ids
-        )
-        
-        return doc_list
+        return vectorstore, text

@@ -10,15 +10,15 @@ class QueryProcessor:
         """Process a single query against the document using FAISS"""
         
         try:
-            # Query the collection for relevant documents
-            results = collection.query(
-                query_texts=[query],
-                n_results=Config.RETRIEVAL_K
+            # Perform similarity search
+            similar_docs = vector_store.similarity_search(
+                query, 
+                k=Config.RETRIEVAL_K
             )
             
             # Extract relevant context
-            if results['documents'] and len(results['documents']) > 0:
-                context = "\n\n".join(results['documents'][0])
+            if similar_docs:
+                context = "\n\n".join([doc.page_content for doc in similar_docs])
             else:
                 context = "No relevant context found."
             
