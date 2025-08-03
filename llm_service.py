@@ -1,19 +1,29 @@
 import requests
 from langchain.llms.base import LLM
-from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
 from fastapi import HTTPException
 from config import Config
 
-class LocalGeminiChatLLM(LLM, BaseModel):
+class LocalGeminiChatLLM(LLM):
     model_name: str = Config.GEMINI_MODEL_NAME
     gemini_api_key: str = Config.GEMINI_API_KEY
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.model_name = kwargs.get('model_name', Config.GEMINI_MODEL_NAME)
+        self.gemini_api_key = kwargs.get('gemini_api_key', Config.GEMINI_API_KEY)
 
     @property
     def _llm_type(self) -> str:
         return "local_gemini_chat_llm"
 
-    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
+    def _call(
+        self, 
+        prompt: str, 
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[Any] = None,
+        **kwargs: Any
+    ) -> str:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent"
         headers = {
             "Content-Type": "application/json",
@@ -57,6 +67,17 @@ class LocalGeminiChatLLM(LLM, BaseModel):
         except Exception as e:
             print(f"Error calling Gemini API: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Gemini API error: {str(e)}")
+
+    @property
+    def _identifying_params(self) -> dict:
+        """Get the identifying parameters."""
+        return {
+            "model_name": self.model_name,
+            "temperature": Config.TEMPERATURE,
+            "max_output_tokens": Config.MAX_OUTPUT_TOKENS,
+            "top_p": Config.TOP_P,
+            "top_k": Config.TOP_K
+        }
 
 def test_llm_connectivity() -> str:
     """Test LLM API connectivity"""

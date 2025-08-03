@@ -22,4 +22,6 @@ class Config:
     TOP_P = 0.9
     TOP_K = 40
     
-    CHROMA_DB_PATH = "./chroma_db"
+    # FAISS configuration
+    FAISS_INDEX_PATH = "./faiss_indexes"
+    FAISS_METADATA_PATH = "./faiss_metadata"

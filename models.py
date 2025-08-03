@@ -26,7 +26,7 @@ class HealthResponse(BaseModel):
     model: str
     api_status: str
     loaded_pdf_ids: List[str]
-    chromadb_collections: int
+    faiss_indexes: int  # Changed from chromadb_collections to faiss_indexes
     capabilities: dict
 
 class ModelsResponse(BaseModel):
