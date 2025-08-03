@@ -6,7 +6,7 @@ python-dotenv==1.0.0
 requests==2.31.0
 PyPDF2==3.0.1
 python-docx==1.1.0
-pydantic==2.7.1  # Updated for compatibility with pydantic-settings
+pydantic==2.6.4  # Avoids Rust compilation issues on platforms like Render
 
 # LangChain and related packages
 langchain==0.1.17
