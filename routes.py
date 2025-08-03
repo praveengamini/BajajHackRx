@@ -17,15 +17,20 @@ from llm_service import LocalGeminiChatLLM, test_llm_connectivity
 import uuid
 import pickle
 
+# Initialize router
 router = APIRouter(prefix="/api/v1")
 
+# Initialize services
 document_processor = DocumentProcessor()
 llm = LocalGeminiChatLLM()
 query_processor = QueryProcessor(llm)
 
-# In-memory storage for vector stores and document metadata
-faiss_vector_stores = {}
-document_metadata = {}
+# Initialize ChromaDB
+chroma_client = chromadb.PersistentClient(path=Config.CHROMA_DB_PATH)
+
+# Storage for legacy endpoints
+chroma_collections = {}
+memory_instances = {}
 
 @router.get("/")
 def root():
@@ -47,13 +52,11 @@ async def hackrx_run(
     Processes documents and answers questions with structured JSON responses.
     """
     try:
+        # Process the document
         print(f"Processing document: {request.documents}")
-        vector_store, document_text, doc_id = document_processor.process_document(request.documents)
+        collection, document_text = document_processor.process_document(request.documents)
         
-        # Store the vector store temporarily for this session
-        temp_store_key = f"temp_{doc_id}"
-        faiss_vector_stores[temp_store_key] = vector_store
-        
+        # Process all questions
         answers = []
         for question in request.questions:
             print(f"Processing question: {question}")
@@ -72,6 +75,7 @@ async def hackrx_run(
             detail=f"Error processing request: {str(e)}"
         )
 
+# Legacy endpoints (keeping for backward compatibility)
 @router.post("/embed")
 async def embed_text(
     request: EmbedRequest,
@@ -92,26 +96,25 @@ async def embed_text(
         # Create embeddings
         embeddings = HuggingFaceEmbeddings(model_name=Config.EMBEDDING_MODEL_NAME)
         
-        # Create FAISS vector store
-        vector_store = FAISS.from_documents(documents, embeddings)
+        # Create ChromaDB collection for legacy support
+        collection_name = f"legacy_{request.pdfId}"
+        try:
+            collection = chroma_client.create_collection(name=collection_name)
+        except Exception:
+            collection = chroma_client.get_collection(name=collection_name)
         
-        # Store in memory
-        faiss_vector_stores[request.pdfId] = vector_store
-        document_metadata[request.pdfId] = {
-            "pdf_id": request.pdfId,
-            "num_chunks": len(text_chunks),
-            "text_length": len(request.text)
-        }
+        # Add documents to collection
+        documents = [doc.page_content for doc in texts]
+        embeddings_list = embeddings.embed_documents(documents)
+        ids = [f"doc_{i}" for i in range(len(documents))]
         
-        # Save to disk
-        index_path = os.path.join(Config.FAISS_INDEX_PATH, f"legacy_{request.pdfId}")
-        vector_store.save_local(index_path)
+        collection.add(
+            documents=documents,
+            embeddings=embeddings_list,
+            ids=ids
+        )
         
-        # Save metadata
-        metadata_path = os.path.join(Config.FAISS_METADATA_PATH, f"legacy_{request.pdfId}.pkl")
-        with open(metadata_path, 'wb') as f:
-            pickle.dump(document_metadata[request.pdfId], f)
-        
+        chroma_collections[request.pdfId] = collection
         return {"message": f"Embedding stored for PDF ID: {request.pdfId}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error embedding text: {str(e)}")
@@ -121,27 +124,15 @@ async def generate_answer(
     request: GenerateRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    # Try to get vector store from memory first
-    vector_store = faiss_vector_stores.get(request.pdfId)
-    
-    # If not in memory, try to load from disk
-    if not vector_store:
-        try:
-            index_path = os.path.join(Config.FAISS_INDEX_PATH, f"legacy_{request.pdfId}")
-            if os.path.exists(index_path):
-                embeddings = HuggingFaceEmbeddings(model_name=Config.EMBEDDING_MODEL_NAME)
-                vector_store = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
-                faiss_vector_stores[request.pdfId] = vector_store
-            else:
-                raise HTTPException(status_code=404, detail="No embeddings found for this PDF ID")
-        except Exception as e:
-            raise HTTPException(status_code=404, detail=f"No embeddings found for this PDF ID: {str(e)}")
+    collection = chroma_collections.get(request.pdfId)
+    if not collection:
+        raise HTTPException(status_code=404, detail="No embeddings found for this PDF ID")
     
     try:
-        # Perform similarity search
-        similar_docs = vector_store.similarity_search(
-            request.message,
-            k=3
+        # Query ChromaDB collection
+        results = collection.query(
+            query_texts=[request.message],
+            n_results=3
         )
         
         if similar_docs:
@@ -169,12 +160,10 @@ Please answer the question based on the provided context. If the answer cannot b
 @router.get("/health", response_model=HealthResponse)
 def health_check():
     try:
-        # Count FAISS indexes
-        faiss_index_count = 0
-        if os.path.exists(Config.FAISS_INDEX_PATH):
-            faiss_index_count = len([d for d in os.listdir(Config.FAISS_INDEX_PATH) 
-                                   if os.path.isdir(os.path.join(Config.FAISS_INDEX_PATH, d))])
+        collections = chroma_client.list_collections()
+        collection_count = len(collections)
         
+        # Test Gemini API connectivity
         api_status = test_llm_connectivity()
         
         # Get list of loaded PDF IDs

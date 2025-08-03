@@ -10,18 +10,19 @@ class QueryProcessor:
         """Process a single query against the document using FAISS"""
         
         try:
-            # Perform similarity search using FAISS
-            similar_docs = vector_store.similarity_search(
-                query, 
-                k=Config.RETRIEVAL_K
+            # Query the collection for relevant documents
+            results = collection.query(
+                query_texts=[query],
+                n_results=Config.RETRIEVAL_K
             )
             
-            if similar_docs:
-                # Extract content from retrieved documents
-                context = "\n\n".join([doc.page_content for doc in similar_docs])
+            # Extract relevant context
+            if results['documents'] and len(results['documents']) > 0:
+                context = "\n\n".join(results['documents'][0])
             else:
                 context = "No relevant context found."
             
+            # Create enhanced prompt for insurance/legal domain
             prompt = f"""You are an expert in insurance policy analysis and legal document interpretation. 
 Your task is to answer questions about policy documents with high accuracy and provide specific details.
 

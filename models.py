@@ -2,12 +2,13 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 class HackRXRunRequest(BaseModel):
-    documents: str 
+    documents: str  # URL to the document
     questions: List[str]
 
 class HackRXRunResponse(BaseModel):
     answers: List[str]
 
+# Legacy models (keeping for backward compatibility)
 class EmbedRequest(BaseModel):
     text: str
     pdfId: str

@@ -62,73 +62,43 @@ class DocumentProcessor:
             raise HTTPException(status_code=400, detail=f"Failed to extract DOCX text: {str(e)}")
     
     def process_document(self, document_url: str) -> tuple:
-        """Process document and create FAISS vector store"""
+        """Process document and create ChromaDB collection"""
+        # Download document
         content = self.download_document(document_url)
         
+        # Determine file type and extract text
         if document_url.lower().endswith('.pdf'):
             text = self.extract_text_from_pdf(content)
         elif document_url.lower().endswith('.docx'):
             text = self.extract_text_from_docx(content)
         else:
+            # Assume it's plain text
             text = content.decode('utf-8', errors='ignore')
         
         # Split text into chunks
-        text_chunks = self.text_splitter.split_text(text)
+        texts = self.text_splitter.create_documents([text])
         
-        # Create Langchain documents
-        documents = [LangchainDocument(page_content=chunk) for chunk in text_chunks]
+        # Create unique collection name
+        collection_name = f"doc_{str(uuid.uuid4())[:8]}"
         
-        # Create FAISS vector store
-        vector_store = FAISS.from_documents(documents, self.embeddings)
+        # Create or get collection
+        try:
+            collection = self.chroma_client.create_collection(
+                name=collection_name,
+                metadata={"source": document_url}
+            )
+        except Exception:
+            collection = self.chroma_client.get_collection(name=collection_name)
         
-        # Generate unique identifier for this document
-        doc_id = f"doc_{str(uuid.uuid4())[:8]}"
+        # Add documents to collection
+        documents = [doc.page_content for doc in texts]
+        embeddings = self.embeddings.embed_documents(documents)
+        ids = [f"doc_{i}" for i in range(len(documents))]
         
-        # Save FAISS index
-        index_path = os.path.join(Config.FAISS_INDEX_PATH, doc_id)
-        vector_store.save_local(index_path)
-        
-        # Save metadata
-        metadata = {
-            "doc_id": doc_id,
-            "source": document_url,
-            "num_chunks": len(text_chunks),
-            "original_text": text
-        }
-        metadata_path = os.path.join(Config.FAISS_METADATA_PATH, f"{doc_id}.pkl")
-        with open(metadata_path, 'wb') as f:
-            pickle.dump(metadata, f)
-        
-        return vector_store, text, doc_id
-    
-    def load_vector_store(self, doc_id: str) -> FAISS:
-        """Load existing FAISS vector store"""
-        index_path = os.path.join(Config.FAISS_INDEX_PATH, doc_id)
-        if not os.path.exists(index_path):
-            raise HTTPException(status_code=404, detail=f"Vector store not found for doc_id: {doc_id}")
-        
-        vector_store = FAISS.load_local(index_path, self.embeddings, allow_dangerous_deserialization=True)
-        return vector_store
-    
-    def get_metadata(self, doc_id: str) -> dict:
-        """Get metadata for a document"""
-        metadata_path = os.path.join(Config.FAISS_METADATA_PATH, f"{doc_id}.pkl")
-        if not os.path.exists(metadata_path):
-            return {}
-        
-        with open(metadata_path, 'rb') as f:
-            return pickle.load(f)
-    
-    def list_documents(self) -> list:
-        """List all processed documents"""
-        if not os.path.exists(Config.FAISS_METADATA_PATH):
-            return []
-        
-        doc_list = []
-        for filename in os.listdir(Config.FAISS_METADATA_PATH):
-            if filename.endswith('.pkl'):
-                doc_id = filename[:-4]  # Remove .pkl extension
-                metadata = self.get_metadata(doc_id)
-                doc_list.append(metadata)
+        collection.add(
+            documents=documents,
+            embeddings=embeddings,
+            ids=ids
+        )
         
         return doc_list

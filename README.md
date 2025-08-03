@@ -61,7 +61,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ### Base URL
 - **Local Development**: `http://localhost:8000/api/v1`
-- **Authentication**: `Bearer your token`
+- **Authentication**: `Bearer f31b509fa84200a558797aa954acd8bc0296cb8c78649676ac6e716c75c15c15`
 
 ### Main Endpoint
 
@@ -152,7 +152,7 @@ Process documents and answer questions.
 ```bash
 # Test the main endpoint
 curl -X POST "http://localhost:8000/api/v1/hackrx/run" \
-     -H "Authorization: Bearer your_token" \
+     -H "Authorization: Bearer f31b509fa84200a558797aa954acd8bc0296cb8c78649676ac6e716c75c15c15" \
      -H "Content-Type: application/json" \
      -d '{
        "documents": "https://example.com/document.pdf",
@@ -161,7 +161,7 @@ curl -X POST "http://localhost:8000/api/v1/hackrx/run" \
 
 # Health check
 curl -X GET "http://localhost:8000/api/v1/health" \
-     -H "Authorization: Bearer your_token"
+     -H "Authorization: Bearer f31b509fa84200a558797aa954acd8bc0296cb8c78649676ac6e716c75c15c15"
 ```
 
 ## 📝 Environment Variables
