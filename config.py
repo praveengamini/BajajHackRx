@@ -14,7 +14,7 @@ class Config:
     
     # Gemini API Configuration
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "your-gemini-api-key")
-    GEMINI_MODEL_NAME = "gemini-1.5-flash"
+    GEMINI_MODEL_NAME = "gemini-2.5-flash"
     
     # Generation Parameters
     TEMPERATURE = 0.1
